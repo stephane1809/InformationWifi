@@ -6,16 +6,96 @@
 //
 
 import SwiftUI
+import SystemConfiguration.CaptiveNetwork
+import CoreLocation
 
 struct ContentView: View {
+    
+    init() {
+        setupLocation()
+    }
+
     var body: some View {
         VStack {
             Image(systemName: "globe")
                 .imageScale(.large)
                 .foregroundStyle(.tint)
-            Text("Hello, world!")
+            Text("Hello, \(updateWifi())")
         }
         .padding()
+    }
+
+    var currentNetworkInfos: Array<NetworkInfo>? {
+        get {
+            return SSID.fetchNetworkInfo()
+        }
+    }
+
+    func getWiFiSsid() -> String? {
+        var ssid: String?
+        if let interfaces = CNCopySupportedInterfaces() as NSArray? {
+            for interface in interfaces {
+                if let interfaceInfo = CNCopyCurrentNetworkInfo(interface as! CFString) as NSDictionary? {
+                    ssid = interfaceInfo[kCNNetworkInfoKeySSID as String] as? String
+                    break
+                }
+            }
+        }
+        print("SSID is: \(ssid)")
+        return ssid
+    }
+
+    func updateWifi() -> String {
+        print("Show all wifi")
+        var nome = ""
+        currentNetworkInfos?.forEach({ (networkInfo) in
+            if let ssid = networkInfo.ssid {
+                print("SSID: \(ssid)")
+                nome = nome.appending(ssid)
+            }
+        })
+        return nome
+    }
+
+    func setupLocation() {
+        let status = CLLocationManager.authorizationStatus()
+        let locationManager = CLLocationManager()
+        if status == .authorizedWhenInUse {
+            updateWifi()
+        } else if status == .authorizedAlways {
+            updateWifi()
+        } else {
+            locationManager.requestWhenInUseAuthorization()
+        }
+    }
+
+}
+
+struct NetworkInfo {
+    var interface: String
+    var success: Bool = false
+    var ssid: String?
+    var bssid: String?
+}
+
+public class SSID {
+    class func fetchNetworkInfo() -> [NetworkInfo]? {
+        if let interfaces: NSArray = CNCopySupportedInterfaces() {
+            var networkInfos = [NetworkInfo]()
+            for interface in interfaces {
+                let interfaceName = interface as! String
+                var networkInfo = NetworkInfo(interface: interfaceName,
+                                              success: false, ssid: nil, bssid: nil)
+                if let dict = CNCopyCurrentNetworkInfo(interfaceName as CFString) as NSDictionary? {
+                    networkInfo.success = true
+                    networkInfo.ssid = dict[kCNNetworkInfoKeySSID as String] as? String
+                    networkInfo.bssid = dict[kCNNetworkInfoKeyBSSID as String] as? String
+                }
+                networkInfos.append (networkInfo)
+            }
+            return networkInfos
+        }
+        return nil
     }
 }
 
