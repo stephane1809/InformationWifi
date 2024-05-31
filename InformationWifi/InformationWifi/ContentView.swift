@@ -8,11 +8,14 @@
 import SwiftUI
 import SystemConfiguration.CaptiveNetwork
 import CoreLocation
+import UIKit
+import NetworkExtension
 
 struct ContentView: View {
-    
+    let helper = MyHotspotHelper()
     init() {
-        setupLocation()
+       setupLocation()
+        helper.listAvailableNetworks()
     }
 
     var body: some View {
@@ -20,7 +23,7 @@ struct ContentView: View {
             Image(systemName: "globe")
                 .imageScale(.large)
                 .foregroundStyle(.tint)
-            Text("Hello, \(updateWifi())")
+            Text("Hello, \(helper.listAvailableNetworks())")
         }
         .padding()
     }
@@ -98,6 +101,23 @@ public class SSID {
         return nil
     }
 }
+
+class MyHotspotHelper: NEHotspotHelperCommand {
+    func listAvailableNetworks() {
+        NEHotspotHelper.register(options: nil, queue: DispatchQueue.main) { (cmd: NEHotspotHelperCommand) in
+            if cmd.commandType == .filterScanList {
+                guard let networkList = cmd.networkList else {
+                    print("No networks found")
+                    return
+                }
+                for network in networkList {
+                    print("SSID: \(network.ssid), BSSID: \(network.bssid), Signal Strength: \(network.signalStrength)")
+                }
+            }
+        }
+    }
+}
+                                 
 
 #Preview {
     ContentView()
